@@ -6,9 +6,17 @@ import numpy as np
 global width
 global height
 
+#Output video type, 1 for drawing 2 for original video
+output_video = 1
+
 FPS = 15
 donation_zones_path = 'ADC-RIVER.OAKS-MACO2.jpg.json'
 data_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.json'
+video_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.mp4'
+
+show_video = True
+
+
 
 def get_donation_zones(path):
     # Opening JSON file
@@ -75,10 +83,29 @@ def update_counter(counted_items,arm_items):
 
 
 donation_zones,height,width = get_donation_zones(donation_zones_path)
-blank_image = np.ones((height,width,3),np.uint8)
 
-for zone in donation_zones:
-    cv2.polylines(blank_image, [zone], True, (0,255,0),3)
+cap = cv2.VideoCapture(video_path)
+
+
+
+blank_image = np.zeros((height,width,3),np.uint8)
+# res, blank_image = cap.read()
+
+
+def draw_zones(image,donation_zones):
+    for zone in donation_zones:
+        cv2.polylines(image, [zone], True, (255, 0, 0), 2)
+        new_coords_donation = (zone[0][0]-5,zone[0][1]-5)
+        cv2.putText(image, "DonationZone", new_coords_donation, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+
+# draw_zones(blank_image, donation_zones)
+# res = cv2.resize(blank_image, (0, 0), fx = 0.5, fy = 0.5)
+
+
+
+# cv2.imshow('blank',res)
+# cv2.waitKey(0)
+
 
 # out = cv2.VideoWriter('out.avi',cv2.VideoWriter_fourcc('M','J','P','G'),FPS,(height,width))
 video = cv2.VideoWriter('out.mp4',cv2.VideoWriter_fourcc(*'mp4v'), 15,(width,height))
@@ -94,10 +121,19 @@ c=0
 arm_items = {}
 counted_items = set()
 for frame in data:
-  frame_image = blank_image.copy()
+  if output_video ==1:
+      frame_image = blank_image.copy()
+  else:
+      cap.set(cv2.CAP_PROP_POS_FRAMES, frame['id'])
+      res, frame_image = cap.read()
+      
+  frame_image = cv2.resize(frame_image, (1920,1440))
   
-  cv2.putText(frame_image, "Frame Counter: "+str(frame['id']), (50,50), cv2.FONT_HERSHEY_SIMPLEX,2,(255,255,255))  
-  cv2.putText(frame_image, "Time Stamp: "+str(frame['ts']), (900,50), cv2.FONT_HERSHEY_SIMPLEX,2,(255,255,255))  
+  draw_zones(frame_image, donation_zones)
+
+  
+  cv2.putText(frame_image, f"Frame number: {frame['id']}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)  
+  cv2.putText(frame_image, "Time Stamp: "+str(frame['ts']), (1250,25), cv2.FONT_HERSHEY_SIMPLEX,1, (255, 255, 0), 2)  
     
   # processing each frame
   for i in frame['objects']:
@@ -105,27 +141,44 @@ for frame in data:
     obj = parse_string(i)
     s,e = get_coord(i)
     if obj[0]== 'Arm_Item':
-        cv2.rectangle(frame_image,s,e,(255,255,0),2)
+        
+        cv2.rectangle(frame_image,s,e,(0, 0, 255),2)
+        s = (s[0],s[1]-5)
+        # e = (e[0],e[1]-5)
+        
+        cv2.putText(frame_image, f"{obj[0]}#{obj[1]}", s, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 1)
+
         if obj[1] in arm_items:
             arm_items[obj[1]] = [arm_items[obj[1]][0],(obj[4],obj[5])]
 
         else:
             arm_items[obj[1]] = [(obj[4],obj[5]),(obj[4],obj[5])]
     elif obj[0]=='Cart':
-        cv2.rectangle(frame_image,s,e,(0,0,255),2)
+        cv2.rectangle(frame_image,s,e,(255, 255, 255),2)
+        s = (s[0],s[1]-5)
+        # e = (e[0],e[1]-5)
+        
+        cv2.putText(frame_image, f"Human#{obj[1]}", s, cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 1)
         
     else:
-        cv2.rectangle(frame_image,s,e,(0,234,255),2)
+        cv2.rectangle(frame_image,s,e,(0, 255, 0),2)
+        s = (s[0],s[1]-5)
+        # e = (e[0],e[1]-5)
+        
+        cv2.putText(frame_image, f"{obj[0]}#{obj[1]}", s, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 255, 0), 1)
         
        
   update_counter(counted_items, arm_items)
   if c == len(counted_items)-1:
       c+=1
-  cv2.putText(frame_image, "Item Counter: "+str(max(c,len(counted_items))), (50,100), cv2.FONT_HERSHEY_SIMPLEX,2,(255,255,255))  
+  cv2.putText(frame_image, "Item Counter: "+str(max(c,len(counted_items))), (50, 100), cv2.FONT_HERSHEY_SIMPLEX,1, (255, 255, 0), 2)  
   video.write(frame_image)
-  # cv2.imshow("Result",frame_image)
-  
-  # cv2.waitKey(0)
+  if show_video:
+      res = cv2.resize(frame_image, (0, 0), fx = 0.6, fy = 0.6)
+      cv2.imshow("Result",res)
+      
+      
+      cv2.waitKey(0)
   
               
   
