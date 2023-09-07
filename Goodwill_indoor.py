@@ -90,7 +90,7 @@ f = open(data_path)
     # a dictionary
 data = json.load(f)['messages']
 
-
+c=0
 arm_items = {}
 counted_items = set()
 for frame in data:
@@ -119,16 +119,17 @@ for frame in data:
         
        
   update_counter(counted_items, arm_items)
-  cv2.putText(frame_image, "Item Counter: "+str(len(counted_items)), (50,100), cv2.FONT_HERSHEY_SIMPLEX,2,(255,255,255))  
+  if c == len(counted_items)-1:
+      c+=1
+  cv2.putText(frame_image, "Item Counter: "+str(max(c,len(counted_items))), (50,100), cv2.FONT_HERSHEY_SIMPLEX,2,(255,255,255))  
   video.write(frame_image)
   # cv2.imshow("Result",frame_image)
   
   # cv2.waitKey(0)
   
-  
               
-
-  print(frame['id'],len(counted_items))
+  
+  print(frame['id'],max(c,len(counted_items)))
   # import time
   # time.sleep(0.100)
 video.release()
