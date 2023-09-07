@@ -96,5 +96,5 @@ for frame in data:
   # print(len(counted_items))
   
 
-print("Total items:",4)
+print("Total items:",len(counted_items))
     
