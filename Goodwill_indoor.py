@@ -11,7 +11,7 @@ FLICKERING_THRESH = 25
 #Output video type, 1 for drawing 2 for original video
 output_video = 2
 
-FPS = 10
+FPS = 5
 donation_zones_path = 'ADC-RIVER.OAKS-MACO2.jpg.json'
 
 #first
@@ -88,7 +88,10 @@ def update_counter(counted_items,arm_items,boxes):
             # cond2 = cond2 or (cv2.pointPolygonTest(d, item[1],False)==1)
 
         for b in boxes:
+            #start point is outside of any box
             cond1 = cond1 and not point_inside_rectangle(item[0],b)
+
+            #end point is inside somebox
             cond2 = cond2 or (point_inside_rectangle(item[1],b))
             if cond1==False:
                 break
@@ -97,10 +100,11 @@ def update_counter(counted_items,arm_items,boxes):
             
         cond = cond1 and cond2
 
-        if cond and item[2]>=FLICKERING_THRESH:
-            counted_items.add(key)
-        else:
-            counted_items.discard(key)
+        if cond: 
+            if item[2]>=FLICKERING_THRESH:
+                counted_items.add(key)
+        # else:
+        #     counted_items.discard(key)
 
 
 donation_zones,height,width = get_donation_zones(donation_zones_path)
@@ -169,7 +173,7 @@ for frame in data:
   
   draw_zones(frame_image, donation_zones)
 
-  if frame['id']==154:
+  if frame['id']==1236:
       print('here')
 
 
