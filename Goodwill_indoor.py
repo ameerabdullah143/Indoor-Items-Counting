@@ -7,12 +7,19 @@ global width
 global height
 
 #Output video type, 1 for drawing 2 for original video
-output_video = 1
+output_video = 2
 
-FPS = 15
+FPS = 10
 donation_zones_path = 'ADC-RIVER.OAKS-MACO2.jpg.json'
-data_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.json'
-video_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.mp4'
+
+#first
+# data_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.json'
+# video_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.mp4'
+
+#biggest
+data_path = 'JSONS/h264_2023-07-27_11-57-16-ADC-RIVER.OAKS-MACO2_09042023.json'
+video_path = 'JSONS/h264_2023-07-27_11-57-16-ADC-RIVER.OAKS-MACO2_09042023.mp4'
+
 
 show_video = True
 
@@ -61,23 +68,35 @@ def parse_string(s):
 def get_coord(s):
   items = s.split('|')
 
-  cls, t_id, _, x1_p, y1_p, x2_p, y2_p, conf = items
+  cls, _, _, x1_p, y1_p, x2_p, y2_p, _ = items
 
   x1, y1 = int(int(x1_p) * width / 10000), int(int(y1_p) * height / 10000)
   x2, y2 = int(int(x2_p) * width / 10000), int(int(y2_p) * height / 10000)
   
-  return (x1,y1),(x2,y2)
+  return cls,(x1,y1),(x2,y2)
 
 
-def update_counter(counted_items,arm_items):
+def update_counter(counted_items,arm_items,boxes):
     c = 0
-    for key,item in arm_items.items():        
-        if (cv2.pointPolygonTest(donation_zones[0], item[0],False)==-1 and
-            (cv2.pointPolygonTest(donation_zones[0], item[1],False)==1 or
-             cv2.pointPolygonTest(donation_zones[1], item[1],False)==1)):
+    for key,item in arm_items.items():
+        cond1 = True
+        cond2 = False
+        # for d in donation_zones:
+            # cond1 = cond1 and (cv2.pointPolygonTest(d, item[0],False)==-1)
+            # cond2 = cond2 or (cv2.pointPolygonTest(d, item[1],False)==1)
+
+        for b in boxes:
+            cond1 = cond1 and not point_inside_rectangle(item[0],b)
+            cond2 = cond2 or (point_inside_rectangle(item[1],b))
+            if cond1==False:
+                break
+
+
             
+        cond = cond1 and cond2
+
+        if cond:
             counted_items.add(key)
-            
         else:
             counted_items.discard(key)
 
@@ -91,6 +110,31 @@ cap = cv2.VideoCapture(video_path)
 blank_image = np.zeros((height,width,3),np.uint8)
 # res, blank_image = cap.read()
 
+def boxes_in_roi(objects):
+    boxes = []
+    for i in objects:
+        cls,(x1,y1),(x2,y2) = get_coord(i)
+        if cls in ['H','Duro','Tote']:
+            cx = int((x1+x2)/2)
+            cy = int((y1+y2)/2)
+
+            for d in donation_zones:
+                if cv2.pointPolygonTest(d, (cx,cy),False)==1:
+                    boxes.append([(x1,y1),(x2,y2)])
+
+    return boxes
+
+            
+
+
+def point_inside_rectangle(point,rect):
+    x,y = point
+    (x1,y1),(x2,y2) = rect
+    return x1<=x<=x2 and y1<=y<=y2
+
+
+
+
 
 def draw_zones(image,donation_zones):
     for zone in donation_zones:
@@ -98,17 +142,9 @@ def draw_zones(image,donation_zones):
         new_coords_donation = (zone[0][0]-5,zone[0][1]-5)
         cv2.putText(image, "DonationZone", new_coords_donation, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
 
-# draw_zones(blank_image, donation_zones)
-# res = cv2.resize(blank_image, (0, 0), fx = 0.5, fy = 0.5)
 
-
-
-# cv2.imshow('blank',res)
-# cv2.waitKey(0)
-
-
-# out = cv2.VideoWriter('out.avi',cv2.VideoWriter_fourcc('M','J','P','G'),FPS,(height,width))
-video = cv2.VideoWriter('out.mp4',cv2.VideoWriter_fourcc(*'mp4v'), 15,(width,height))
+output_video = "".join(video_path.split('.')[:-1]).split('/')[-1]+'_out.mp4'
+video = cv2.VideoWriter(output_video,cv2.VideoWriter_fourcc(*'mp4v'), FPS,(width,height))
 
 # Opening JSON file
 f = open(data_path)
@@ -118,8 +154,8 @@ f = open(data_path)
 data = json.load(f)['messages']
 
 c=0
-arm_items = {}
 counted_items = set()
+arm_items = {}
 for frame in data:
   if output_video ==1:
       frame_image = blank_image.copy()
@@ -131,15 +167,24 @@ for frame in data:
   
   draw_zones(frame_image, donation_zones)
 
+  if frame['id']==154:
+      print('here')
+
+
   
   cv2.putText(frame_image, f"Frame number: {frame['id']}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)  
-  cv2.putText(frame_image, "Time Stamp: "+str(frame['ts']), (1250,25), cv2.FONT_HERSHEY_SIMPLEX,1, (255, 255, 0), 2)  
+  cv2.putText(frame_image, "Time Stamp: "+str(frame['ts']), (1250,25), cv2.FONT_HERSHEY_SIMPLEX,1, (255, 255, 0), 2)
+
+  boxes = boxes_in_roi(frame['objects'])  
     
   # processing each frame
   for i in frame['objects']:
       
     obj = parse_string(i)
-    s,e = get_coord(i)
+    # if obj[1]==19:
+    #     print()
+    _,s,e = get_coord(i)
+
     if obj[0]== 'Arm_Item':
         
         cv2.rectangle(frame_image,s,e,(0, 0, 255),2)
@@ -168,7 +213,7 @@ for frame in data:
         cv2.putText(frame_image, f"{obj[0]}#{obj[1]}", s, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 255, 0), 1)
         
        
-  update_counter(counted_items, arm_items)
+  update_counter(counted_items, arm_items,boxes)
   if c == len(counted_items)-1:
       c+=1
   cv2.putText(frame_image, "Item Counter: "+str(max(c,len(counted_items))), (50, 100), cv2.FONT_HERSHEY_SIMPLEX,1, (255, 255, 0), 2)  
@@ -178,7 +223,7 @@ for frame in data:
       cv2.imshow("Result",res)
       
       
-      cv2.waitKey(0)
+      cv2.waitKey(1)
   
               
   
