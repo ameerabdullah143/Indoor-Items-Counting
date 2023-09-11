@@ -6,6 +6,8 @@ import numpy as np
 global width
 global height
 
+FLICKERING_THRESH = 25
+
 #Output video type, 1 for drawing 2 for original video
 output_video = 2
 
@@ -13,12 +15,12 @@ FPS = 10
 donation_zones_path = 'ADC-RIVER.OAKS-MACO2.jpg.json'
 
 #first
-# data_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.json'
-# video_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.mp4'
+data_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.json'
+video_path = 'h264__2023-09-03_15-18-01-ADC-RIVER.OAKS-MACO2_09042023.mp4'
 
 #biggest
-data_path = 'JSONS/h264_2023-07-27_11-57-16-ADC-RIVER.OAKS-MACO2_09042023.json'
-video_path = 'JSONS/h264_2023-07-27_11-57-16-ADC-RIVER.OAKS-MACO2_09042023.mp4'
+# data_path = 'JSONS/h264_2023-07-27_11-57-16-ADC-RIVER.OAKS-MACO2_09042023.json'
+# video_path = 'JSONS/h264_2023-07-27_11-57-16-ADC-RIVER.OAKS-MACO2_09042023.mp4'
 
 
 show_video = True
@@ -95,7 +97,7 @@ def update_counter(counted_items,arm_items,boxes):
             
         cond = cond1 and cond2
 
-        if cond:
+        if cond and item[2]>=FLICKERING_THRESH:
             counted_items.add(key)
         else:
             counted_items.discard(key)
@@ -194,10 +196,11 @@ for frame in data:
         cv2.putText(frame_image, f"{obj[0]}#{obj[1]}", s, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 1)
 
         if obj[1] in arm_items:
-            arm_items[obj[1]] = [arm_items[obj[1]][0],(obj[4],obj[5])]
+            cnt = arm_items[obj[1]][2]+1 
+            arm_items[obj[1]] = [arm_items[obj[1]][0],(obj[4],obj[5]),cnt]
 
         else:
-            arm_items[obj[1]] = [(obj[4],obj[5]),(obj[4],obj[5])]
+            arm_items[obj[1]] = [(obj[4],obj[5]),(obj[4],obj[5]),1]
     elif obj[0]=='Cart':
         cv2.rectangle(frame_image,s,e,(255, 255, 255),2)
         s = (s[0],s[1]-5)
