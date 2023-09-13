@@ -107,10 +107,10 @@ def update_counter(counted_items,arm_items,boxes):
         
         for d in donation_zones:
             cond3 = cond3 and (cv2.pointPolygonTest(d, item[0],True)<-IMAGINARY_ROI)
-            # cond4 = cond4 or (cv2.pointPolygonTest(d, item[1],False)==1)
+            cond4 = cond4 or (cv2.pointPolygonTest(d, item[1],False)==1)
 
             
-        cond = cond1 and cond2 and cond3
+        cond = cond1 and cond2 and cond3 and cond4
 
         if cond: 
             if item[2]>=FLICKERING_THRESH:
@@ -185,9 +185,9 @@ for frame in data:
   
   draw_zones(frame_image, donation_zones)
 
-  # if frame['id']==120:
-  #      print('here')
-  #     break
+  if frame['id']==2000:
+    print('here')
+    break
 
   
   cv2.putText(frame_image, f"Frame number: {frame['id']}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)  
